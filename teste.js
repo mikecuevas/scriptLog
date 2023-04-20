@@ -1,43 +1,64 @@
 const https = require('https');
+const fs = require('fs');
 
-var options = {
-  hostname: 'www.google.com',
+const options = {
+  hostname: 'site de teste',
   port: 443,
   path: '/',
   method: 'GET'
 };
 
+const arquivoResultados = 'resultados.txt';
+const numeroRequisicoesSalvar = 10;
+let numeroRequisicoes = 0;
+let resultados = '';
 
-///funcao q faz a busca a cada 10 segundos
-setInterval(() => GETRequisicao(options), 10 * 10000);
+setInterval(() => {
+  fazerRequisicao(options);
+}, 10 * 1000);
 
+function fazerRequisicao(options) {
+  const req = https.get(options, (res) => {
+    console.log('statusCode:', res.statusCode);
+    console.log('headers:', res.headers);
+    let dados = '';
 
+    res.on('data', (chunk) => {
+      dados += chunk;
+    });
 
-function GETRequisicao(options){
-    
+    res.on('end', () => {
+      if (res.statusCode >= 200 && res.statusCode <= 299) {
+        resultados += `Requisição ${++numeroRequisicoes}: OK\n`;
+      } else {
+        resultados += `Requisição ${++numeroRequisicoes}: ERRO (${res.statusCode})\n`;
+      }
 
-    const req = https.get(options, (res) => {
-        console.log('statusCode:', res.statusCode);
-        console.log('headers:', res.headers);
+      if (numeroRequisicoes % numeroRequisicoesSalvar === 0) {
+        salvarResultados(resultados);
+        resultados = '';
+      }
+    });
+  });
 
-        res.on('data', (d) => {
-            if(res.statusCode < 200 || res.statusCode > 299){
-                // Funcao que envia email aqui e bla blab lba
+  req.on('error', (error) => {
+    console.error(`Erro na requisição: ${error}`);
+    resultados += `Requisição ${++numeroRequisicoes}: ERRO\n`;
+    if (numeroRequisicoes % numeroRequisicoesSalvar === 0) {
+      salvarResultados(resultados);
+      resultados = '';
+    }
+  });
 
-                console.log('deu erro envia email');
-            }
-            else {
-                console.log('deu certo');
-            }
-        });
-       
+  req.end();
+}
 
-        req.on('error', (e) => {
-        console.error(e);
-        });
-
-    // Se der erro na requisição tbm é bom enviar e-mail
-    });    
-    req.end;
-
+function salvarResultados(resultados) {
+  fs.appendFile(arquivoResultados, resultados, (error) => {
+    if (error) {
+      console.error(`Erro ao salvar resultados: ${error}`);
+    } else {
+      console.log('Resultados salvos com sucesso.');
+    }
+  });
 }
